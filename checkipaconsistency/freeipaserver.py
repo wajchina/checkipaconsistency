@@ -26,7 +26,7 @@ from __future__ import print_function
 import logging
 import ldap
 import dns.resolver
-
+import timeout
 
 class FreeIPAServer(object):
     def __init__(self, host, domain, binddn, bindpw):
@@ -108,6 +108,7 @@ class FreeIPAServer(object):
                 msg = e.args[0]['desc']
         return msg
 
+    @timeout.func_timeout(5)
     def _get_conn(self):
         self._log.debug('Setting up LDAP connection')
         ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_NEVER)
@@ -128,7 +129,10 @@ class FreeIPAServer(object):
                 msg = e.args[0]['desc']
             self._log.debug('%s (%s)' % (msg, self._url))
             return False
-
+        except timeout.FuncTimeoutException as e:
+            # raise timeout when LDAP connection with no response
+            self._log.debug('Connect to (%s) with no response, %s' % (self._url, e))
+            return False
         self._log.debug('LDAP connection established')
         return conn
 
